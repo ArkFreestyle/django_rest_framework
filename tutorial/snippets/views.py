@@ -1,34 +1,33 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, renderers, viewsets
+from rest_framework.decorators import api_view, action
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
 from snippets.models import Snippet
 from snippets.serializers import SnippetSerializer, UserSerializer
 from django.contrib.auth.models import User
 from snippets.permissions import IsOwnerOrReadOnly
 
 
-class SnippetList(generics.ListCreateAPIView):
-    """List all code snippets, or create new snippet"""
-    
-    queryset = Snippet.objects.all()
-    serializer_class = SnippetSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
-
-
-class SnippetDetail(generics.RetrieveUpdateDestroyAPIView):
-    """Retrieve, update or delete a code snippet"""
-
+class SnippetViewSet(viewsets.ModelViewSet):
+    """
+    Automatically provides list, create, retrieve, update and destroy actions.
+    Additionally we also provide an extra highlight action.
+    """
     queryset = Snippet.objects.all()
     serializer_class = SnippetSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
+    @action(detail=True, renderer_classes=[renderers.StaticHTMLRenderer])
+    def highlight(self, request, *args, **kwargs):
+        snippet = self.get_object()
+        return Response(snippet.highlighted)
+    
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
-class UserList(generics.ListAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
 
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    """Automatically provides list and detail actions"""
 
-class UserDetail(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
